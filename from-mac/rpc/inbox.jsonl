@@ -1,1 +1,1 @@
-{"id":"live-1","type":"prompt","message":"LIVE_TEST_FROM_MAC"}
+{"id":"first-real-1","type":"prompt","message":"你好 PI，我是 Mac 端。请回复确认收到，并报告你的主机名、当前工作目录、以及 exec: hostname && cd && dir 的输出。"}
