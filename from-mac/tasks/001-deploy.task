@@ -1,0 +1,5 @@
+{
+  "prompt": "在本机执行 TurboPush 补丁部署。步骤：1) 用 PowerShell 运行 C:\\Users\\Administrator\\tp-transfer\\from-mac\\deploy.ps1 ；2) 如果该文件不存在，先从 https://github.com/jonyjanytb-dev/tp-transfer 下载仓库到 C:\\Users\\Administrator\\tp-transfer ；3) 完整报告 deploy-result.log 的内容，包括所有哈希和字节校验行。不要修改任何其他文件。",
+  "tools": "read,bash,powershell,write",
+  "timeout": 600
+}
