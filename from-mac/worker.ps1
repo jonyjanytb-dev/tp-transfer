@@ -11,7 +11,8 @@ param(
   [string]$Repo = "jonyjanytb-dev/tp-transfer",
   [string]$WorkDir = "$env:USERPROFILE\tp-agent-work",
   [string]$ApiKey = $env:PI_API_KEY,
-  [string]$Model  = $env:PI_MODEL
+  [string]$Model  = $env:PI_MODEL,
+  [string]$GhToken = $env:GH_TOKEN
 )
 
 $ErrorActionPreference = 'Continue'
@@ -38,6 +39,31 @@ function GHGetRaw($path) {
   try {
     return Invoke-RestMethod -Uri $u -Headers @{ 'User-Agent'='tp-agent' } -TimeoutSec 30
   } catch { return $null }
+}
+
+# 用 GitHub API 把结果写回仓库
+function GHPut($path, $content, $message) {
+  if (-not $GhToken) { return $false }
+  $u = "https://api.github.com/repos/$Repo/contents/$path"
+  $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($content))
+  # 先查是否已存在（需要 sha 才能更新）
+  $sha = $null
+  try {
+    $cur = Invoke-RestMethod -Uri $u -Headers @{ 'User-Agent'='tp-agent'; 'Authorization'="Bearer $GhToken" } -TimeoutSec 30
+    $sha = $cur.sha
+  } catch {}
+  $body = @{ message = $message; content = $b64 }
+  if ($sha) { $body.sha = $sha }
+  try {
+    Invoke-RestMethod -Uri $u -Method Put -Headers @{
+      'User-Agent'='tp-agent'; 'Authorization'="Bearer $GhToken"
+      'Accept'='application/vnd.github.v3+json'
+    } -Body ($body | ConvertTo-Json) -ContentType 'application/json' -TimeoutSec 60 | Out-Null
+    return $true
+  } catch {
+    Log "  [FAIL] 回传失败: $_"
+    return $false
+  }
 }
 
 Log "=== Agent Bridge 启动 ==="
@@ -126,8 +152,18 @@ do {
         stderr     = $stderr
       }
       $resultFile = Join-Path $WorkDir "$name.result.json"
-      $result | ConvertTo-Json -Depth 10 | Set-Content $resultFile -Encoding UTF8
+      $json = $result | ConvertTo-Json -Depth 10
+      $json | Set-Content $resultFile -Encoding UTF8
       Log "      结果 -> $resultFile"
+
+      # 回传到 GitHub
+      if ($GhToken) {
+        $ok = GHPut "to-mac/results/$name.result.json" $json "result: $name"
+        if ($ok) { Log "      [OK] 已回传 to-mac/results/$name.result.json" }
+        else { Log "      [!!] 回传失败，结果保留在本地" }
+      } else {
+        Log "      [i] 未设置 GH_TOKEN，跳过回传（结果仅在本地）"
+      }
 
       New-Item -ItemType File -Path $doneMark -Force | Out-Null
     }
